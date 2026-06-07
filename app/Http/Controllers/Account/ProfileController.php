@@ -2,10 +2,6 @@
 
 namespace App\Http\Controllers\Account;
 
-use App\Actions\Account\ChangePasswordAction;
-use App\Actions\Account\DeleteAccountAction;
-use App\Actions\Account\UpdateProfileAction;
-use App\Data\Account\ProfileData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Account\ChangePasswordRequest;
 use App\Http\Requests\Account\DeleteAccountRequest;
@@ -13,29 +9,37 @@ use App\Http\Requests\Account\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class ProfileController extends Controller
 {
-    public function update(UpdateProfileRequest $request, UpdateProfileAction $updateProfile): UserResource
+    public function update(UpdateProfileRequest $request): UserResource
     {
-        $user = $updateProfile->handle(
-            $request->user(),
-            ProfileData::from($request->validated()),
-        );
+        $user = $request->user();
+        $user->update([
+            'first_name' => $request->validated('first_name'),
+            'last_name' => $request->validated('last_name'),
+            'phone' => $request->validated('phone'),
+        ]);
 
-        return UserResource::make($user);
+        return UserResource::make($user->load('roles'));
     }
 
-    public function updatePassword(ChangePasswordRequest $request, ChangePasswordAction $changePassword): Response
+    public function updatePassword(ChangePasswordRequest $request): Response
     {
-        $changePassword->handle($request->user(), $request->validated('password'));
+        $user = $request->user();
+
+        // Rotate the remember token so existing "remember me" cookies stop working.
+        $user->password = $request->validated('password');
+        $user->setRememberToken(Str::random(60));
+        $user->save();
 
         return response()->noContent();
     }
 
-    public function destroy(DeleteAccountRequest $request, DeleteAccountAction $deleteAccount): Response
+    public function destroy(DeleteAccountRequest $request): Response
     {
-        $deleteAccount->handle($request->user());
+        $request->user()->delete();
 
         Auth::guard('web')->logout();
         $request->session()->invalidate();
