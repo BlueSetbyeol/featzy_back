@@ -1,5 +1,13 @@
 <?php
 
+use App\Enums\OrderStatus;
+use App\Enums\ReservationStatus;
+use App\Models\MenuCategory;
+use App\Models\MenuItem;
+use App\Models\Order;
+use App\Models\Reservation;
+use App\Models\ReservationParticipant;
+use App\Models\Restaurant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -89,4 +97,48 @@ function actingAsAdmin(array $attributes = []): User
     test()->actingAs($user);
 
     return $user;
+}
+
+/**
+ * Build a confirmed pre-order reservation for $organizer (persisted as the
+ * organizer participant) with a pending, empty order ready to receive items.
+ *
+ * @param  array<string, mixed>  $reservationAttributes
+ * @return array{restaurant: Restaurant, reservation: Reservation, participant: ReservationParticipant, order: Order}
+ */
+function preorderContext(User $organizer, array $reservationAttributes = []): array
+{
+    $restaurant = Restaurant::factory()->published()->create(['accepts_preorders' => true]);
+
+    $reservation = Reservation::factory()->for($restaurant)->for($organizer, 'organizer')->create(array_merge([
+        'is_preorder' => true,
+        'status' => ReservationStatus::Confirmed,
+    ], $reservationAttributes));
+
+    $participant = ReservationParticipant::factory()->for($reservation)->for($organizer)->organizer()->create();
+
+    $order = Order::factory()->for($reservation)->for($restaurant)->create([
+        'status' => OrderStatus::Pending,
+        'placed_at' => null,
+        'stock_restored_at' => null,
+        'items_total' => 0,
+    ]);
+
+    return compact('restaurant', 'reservation', 'participant', 'order');
+}
+
+/**
+ * Create a menu item belonging to $restaurant (with its own category).
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function menuItemFor(Restaurant $restaurant, array $attributes = []): MenuItem
+{
+    $category = MenuCategory::factory()->create(['restaurant_id' => $restaurant->id]);
+
+    // Default to untracked stock so stock behaviour is opt-in and deterministic.
+    return MenuItem::factory()->for($category, 'category')->create(array_merge(
+        ['stock_quantity' => null],
+        $attributes,
+    ));
 }

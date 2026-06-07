@@ -47,4 +47,14 @@ class ReservationPolicy
             ->where('role', ParticipantRole::Guest->value)
             ->exists();
     }
+
+    /**
+     * Any participant may open the (single) pre-order for the reservation.
+     */
+    public function createOrder(User $user, Reservation $reservation): bool
+    {
+        return $reservation->participants()
+            ->where('user_id', $user->id)
+            ->exists();
+    }
 }

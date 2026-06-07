@@ -53,4 +53,12 @@ class Order extends Model
     {
         return $this->hasMany(OrderItem::class);
     }
+
+    /**
+     * Recompute the cached items_total from the items' generated line totals.
+     */
+    public function recalculateItemsTotal(): void
+    {
+        $this->update(['items_total' => (int) $this->items()->sum('line_total')]);
+    }
 }

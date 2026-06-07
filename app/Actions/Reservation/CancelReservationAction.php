@@ -2,6 +2,8 @@
 
 namespace App\Actions\Reservation;
 
+use App\Actions\Order\RestoreOrderStockAction;
+use App\Enums\OrderStatus;
 use App\Enums\ReservationStatus;
 use App\Events\Reservation\ReservationCancelled;
 use App\Exceptions\InvalidStatusTransitionException;
@@ -13,12 +15,15 @@ use Illuminate\Support\Facades\DB;
 
 class CancelReservationAction
 {
+    public function __construct(private readonly RestoreOrderStockAction $restoreOrderStock) {}
+
     /**
      * Cancel a confirmed reservation within its deadline and return its seats to
      * the slot. The confirmed → cancelled transition is itself a conditional
      * UPDATE (WHERE status = confirmed) so a concurrent or replayed cancel can
      * never restore the same seats twice. The restore is clamped via LEAST so it
-     * can never underflow the UNSIGNED column.
+     * can never underflow the UNSIGNED column. Any attached pre-order is voided
+     * and its stock returned to inventory in the same transaction.
      */
     public function handle(Reservation $reservation, User $cancelledBy, ?string $reason = null): Reservation
     {
@@ -64,6 +69,15 @@ class CancelReservationAction
             ServiceAvailability::query()
                 ->whereKey($reservation->service_availability_id)
                 ->update(['booked_seats' => DB::raw('booked_seats - LEAST(booked_seats, '.$reservation->party_size.')')]);
+
+            // Void the attached pre-order (if any) and return its stock; the
+            // restore is idempotent and a no-op for a never-placed order.
+            $order = $reservation->order()->first();
+
+            if ($order !== null) {
+                $this->restoreOrderStock->handle($order);
+                $order->update(['status' => OrderStatus::Cancelled->value]);
+            }
         });
 
         $reservation->refresh();
