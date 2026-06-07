@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\ParticipantRole;
 use App\Models\Reservation;
 use App\Models\User;
 
@@ -28,5 +29,22 @@ class ReservationPolicy
     public function cancel(User $user, Reservation $reservation): bool
     {
         return $reservation->organizer_id === $user->id;
+    }
+
+    public function invite(User $user, Reservation $reservation): bool
+    {
+        return $reservation->organizer_id === $user->id;
+    }
+
+    /**
+     * Only a guest of the reservation may respond to their own invitation; the
+     * organizer is auto-accepted and has nothing to RSVP to.
+     */
+    public function rsvp(User $user, Reservation $reservation): bool
+    {
+        return $reservation->participants()
+            ->where('user_id', $user->id)
+            ->where('role', ParticipantRole::Guest->value)
+            ->exists();
     }
 }

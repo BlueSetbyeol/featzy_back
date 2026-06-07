@@ -24,7 +24,8 @@ class ReservationParticipantResource extends JsonResource
             'invitation_status' => $this->invitation_status->value,
             'is_attending' => $this->is_attending,
             'responded_at' => $this->responded_at?->toIso8601String(),
-            'user' => UserResource::make($this->whenLoaded('user')),
+            'user' => FriendMemberResource::make($this->whenLoaded('user')),
+            'reservation' => ReservationResource::make($this->whenLoaded('reservation')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

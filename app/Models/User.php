@@ -111,6 +111,16 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
     }
 
     /**
+     * Reservation participations of the user (organizer or invited guest).
+     *
+     * @return HasMany<ReservationParticipant, $this>
+     */
+    public function participations(): HasMany
+    {
+        return $this->hasMany(ReservationParticipant::class);
+    }
+
+    /**
      * Reviews written by the user.
      *
      * @return HasMany<Review, $this>
