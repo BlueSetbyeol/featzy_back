@@ -60,6 +60,26 @@ it('restores stock even when the menu item was soft-deleted after placing', func
     expect($item->refresh()->stock_quantity)->toBe(10);
 });
 
+it('does not re-stock or override a served order on reservation cancel', function () {
+    $organizer = actingAsClient();
+    ['restaurant' => $restaurant, 'reservation' => $reservation, 'order' => $order, 'participant' => $participant] =
+        preorderContext($organizer, [
+            'reservation_date' => CarbonImmutable::today()->addDays(5)->toDateString(),
+            'service_type' => ServiceType::Dinner,
+        ]);
+    $item = menuItemFor($restaurant, ['stock_quantity' => 7]); // already decremented at place
+    OrderItem::factory()->for($order)->for($participant, 'participant')->for($item, 'menuItem')->create([
+        'name_snapshot' => $item->name, 'quantity' => 3, 'unit_price_snapshot' => 0, 'options_total_snapshot' => 0,
+    ]);
+    $order->update(['status' => OrderStatus::Served, 'placed_at' => now(), 'stock_restored_at' => null]);
+
+    $this->postJson("/api/reservations/{$reservation->id}/cancel")->assertOk();
+
+    expect($item->refresh()->stock_quantity)->toBe(7); // a served order's stock is consumed, never returned
+    $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => OrderStatus::Served->value]);
+    expect($order->refresh()->stock_restored_at)->toBeNull();
+});
+
 it('voids a pending order on cancellation without touching stock', function () {
     $organizer = actingAsClient();
     ['restaurant' => $restaurant, 'reservation' => $reservation, 'order' => $order, 'participant' => $participant] =

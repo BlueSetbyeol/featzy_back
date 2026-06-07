@@ -37,6 +37,14 @@ class OrderPolicy
         return $order->reservation()->where('organizer_id', $user->id)->exists();
     }
 
+    /**
+     * Kitchen lifecycle actions (prepare / serve / cancel) are owner-only.
+     */
+    public function manage(User $user, Order $order): bool
+    {
+        return $order->restaurant()->where('owner_id', $user->id)->exists();
+    }
+
     private function isParticipant(User $user, Order $order): bool
     {
         return ReservationParticipant::query()

@@ -36,14 +36,20 @@ class CancelReservationAction
 
         $reservation->loadMissing('restaurant');
 
-        $serviceStart = $reservation->reservation_date
-            ->copy()
-            ->setTimeFromTimeString($reservation->service_type->representativeStartTime());
+        // The restaurant owner can cancel at any time; only the organizer (client)
+        // is bound by the cancellation deadline.
+        $isOwner = $reservation->restaurant->owner_id === $cancelledBy->id;
 
-        $deadline = $serviceStart->subHours($reservation->restaurant->cancellation_deadline_hours);
+        if (! $isOwner) {
+            $serviceStart = $reservation->reservation_date
+                ->copy()
+                ->setTimeFromTimeString($reservation->service_type->representativeStartTime());
 
-        if (now()->greaterThan($deadline)) {
-            throw new CancellationDeadlinePassedException;
+            $deadline = $serviceStart->subHours($reservation->restaurant->cancellation_deadline_hours);
+
+            if (now()->greaterThan($deadline)) {
+                throw new CancellationDeadlinePassedException;
+            }
         }
 
         DB::transaction(function () use ($reservation, $cancelledBy, $reason): void {
@@ -70,11 +76,15 @@ class CancelReservationAction
                 ->whereKey($reservation->service_availability_id)
                 ->update(['booked_seats' => DB::raw('booked_seats - LEAST(booked_seats, '.$reservation->party_size.')')]);
 
-            // Void the attached pre-order (if any) and return its stock; the
-            // restore is idempotent and a no-op for a never-placed order.
+            // Void the attached pre-order and return its stock, but only while it
+            // is still voidable: a served order is terminal — never re-stock it or
+            // overwrite its record (mirrors the order-cancel matrix). The restore
+            // is idempotent and a no-op for a never-placed order.
             $order = $reservation->order()->first();
 
-            if ($order !== null) {
+            $voidable = [OrderStatus::Pending, OrderStatus::Confirmed, OrderStatus::Preparing];
+
+            if ($order !== null && in_array($order->status, $voidable, true)) {
                 $this->restoreOrderStock->handle($order);
                 $order->update(['status' => OrderStatus::Cancelled->value]);
             }

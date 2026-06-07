@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Order\OrderController;
 use App\Http\Controllers\Order\OrderItemController;
+use App\Http\Controllers\Restaurant\RestaurantOrderController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -25,4 +26,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Suppression d'une ligne de commande (auteur de la ligne)
     Route::delete('/order-items/{orderItem}', [OrderItemController::class, 'destroy'])
         ->middleware('can:delete,orderItem')->name('order-items.destroy');
+
+    // Board des commandes (propriétaire du restaurant)
+    Route::get('/restaurants/{restaurant}/orders', [RestaurantOrderController::class, 'index'])
+        ->middleware('can:update,restaurant')->name('restaurants.orders.index');
+    // Transitions de statut côté restaurateur (cuisine)
+    Route::post('/orders/{order}/prepare', [RestaurantOrderController::class, 'prepare'])
+        ->middleware('can:manage,order')->name('orders.prepare');
+    Route::post('/orders/{order}/serve', [RestaurantOrderController::class, 'serve'])
+        ->middleware('can:manage,order')->name('orders.serve');
+    Route::post('/orders/{order}/cancel', [RestaurantOrderController::class, 'cancel'])
+        ->middleware('can:manage,order')->name('orders.cancel');
 });

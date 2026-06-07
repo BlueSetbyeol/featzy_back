@@ -3,6 +3,7 @@
 use App\Http\Controllers\Reservation\InvitationController;
 use App\Http\Controllers\Reservation\ParticipantController;
 use App\Http\Controllers\Reservation\ReservationController;
+use App\Http\Controllers\Restaurant\RestaurantReservationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -16,9 +17,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // Détail d'une réservation (organisateur, participant ou propriétaire du restaurant)
     Route::get('/reservations/{reservation}', [ReservationController::class, 'show'])
         ->middleware('can:view,reservation')->name('reservations.show');
-    // Annulation d'une réservation (organisateur)
+    // Annulation d'une réservation (organisateur ou propriétaire du restaurant)
     Route::post('/reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])
         ->middleware('can:cancel,reservation')->name('reservations.cancel');
+
+    // Board des réservations (propriétaire du restaurant)
+    Route::get('/restaurants/{restaurant}/reservations', [RestaurantReservationController::class, 'index'])
+        ->middleware('can:update,restaurant')->name('restaurants.reservations.index');
+    // Transitions de statut côté restaurateur
+    Route::post('/reservations/{reservation}/seat', [RestaurantReservationController::class, 'seat'])
+        ->middleware('can:manage,reservation')->name('reservations.seat');
+    Route::post('/reservations/{reservation}/complete', [RestaurantReservationController::class, 'complete'])
+        ->middleware('can:manage,reservation')->name('reservations.complete');
+    Route::post('/reservations/{reservation}/no-show', [RestaurantReservationController::class, 'noShow'])
+        ->middleware('can:manage,reservation')->name('reservations.no-show');
 
     // Invitation de convives (organisateur ; users explicites et/ou groupe d'amis)
     Route::post('/reservations/{reservation}/participants', [ParticipantController::class, 'store'])

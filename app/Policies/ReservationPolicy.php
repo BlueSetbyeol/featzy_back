@@ -26,14 +26,27 @@ class ReservationPolicy
         return $reservation->participants()->where('user_id', $user->id)->exists();
     }
 
+    /**
+     * The organizer or the restaurant owner may cancel; the owner bypasses the
+     * cancellation deadline (enforced in CancelReservationAction).
+     */
     public function cancel(User $user, Reservation $reservation): bool
     {
-        return $reservation->organizer_id === $user->id;
+        return $reservation->organizer_id === $user->id
+            || $reservation->restaurant()->where('owner_id', $user->id)->exists();
     }
 
     public function invite(User $user, Reservation $reservation): bool
     {
         return $reservation->organizer_id === $user->id;
+    }
+
+    /**
+     * Restaurant-side lifecycle actions (seat / complete / no-show) are owner-only.
+     */
+    public function manage(User $user, Reservation $reservation): bool
+    {
+        return $reservation->restaurant()->where('owner_id', $user->id)->exists();
     }
 
     /**
