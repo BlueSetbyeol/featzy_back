@@ -23,10 +23,12 @@ return [
     // wildcard once credentials (cookies) are allowed. Driven by FRONTEND_URL
     // (comma-separated for multiple SPA origins).
     'allowed_origins' => array_filter(
-        explode(',', (string) env('FRONTEND_URL', 'http://localhost:5173'))
+        explode(',', (string) env('FRONTEND_URL', 'http://localhost:5173,http://localhost:8081'))
     ),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https://.*\.vercel\.app$#', // covers Vercel preview deployment URLs too
+    ],
 
     'allowed_headers' => ['*'],
 
