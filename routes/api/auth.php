@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register'])->name('register');
 // Connexion (session SPA)
 Route::post('/login', [AuthController::class, 'login'])->name('login');
+// Connexion (with Expo)
+Route::post('/mobile/login', [AuthController::class, 'login'])->name('login');
 
 // Envoi du lien de réinitialisation du mot de passe
 Route::post('/forgot-password', [PasswordController::class, 'forgot'])->name('password.email');
