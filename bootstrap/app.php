@@ -1,10 +1,12 @@
 <?php
 
 use App\Exceptions\DomainException;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
@@ -21,6 +23,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // the "api" group so first-party requests coming from a stateful domain
         // receive the session + CSRF protection instead of bearer-token auth.
         $middleware->statefulApi();
+
+        // Required for $request->session() to work on stateful API requests —
+        // statefulApi() alone doesn't add session handling to the pipeline.
+        $middleware->api(prepend: [
+            EncryptCookies::class,
+            StartSession::class,
+        ]);
 
         $middleware->alias([
             'role' => RoleMiddleware::class,
