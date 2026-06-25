@@ -8,12 +8,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
@@ -55,29 +53,6 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         return UserResource::make($request->user()->load('roles'));
-    }
-
-    /**
-     * Authenticate a user on a app from Expo.
-     *
-     * @throws ValidationException
-     */
-    public function loginMobile(LoginRequest $request): JsonResponse
-    {
-        $user = User::query()->where('email', $request->input('email'))->first();
-
-        if (! $user || ! Hash::check($request->input('password'), $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
-            ]);
-        }
-
-        $token = $user->createToken('expo-app')->plainTextToken;
-
-        return response()->json([
-            'token' => $token,
-            'user' => UserResource::make($user->load('roles')),
-        ]);
     }
 
     /**
