@@ -229,6 +229,5 @@ return [
     */
 
     'serialization' => 'json',
-    'block' => env('SESSION_BLOCK', false),
 
 ];
