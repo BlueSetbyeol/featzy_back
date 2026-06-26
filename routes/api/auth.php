@@ -31,3 +31,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Déconnexion
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
+
+Route::get('/debug-session', function () {
+    return [
+        'same_site' => config('session.same_site'),
+        'secure' => config('session.secure'),
+        'domain' => config('session.domain'),
+    ];
+});
