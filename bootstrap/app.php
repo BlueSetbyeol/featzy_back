@@ -21,12 +21,15 @@ return Application::configure(basePath: dirname(__DIR__))
         // Sanctum SPA (cookie mode): prepend EnsureFrontendRequestsAreStateful to
         // the "api" group so first-party requests coming from a stateful domain
         // receive the session + CSRF protection instead of bearer-token auth.
-        $middleware->statefulApi();
+        // $middleware->statefulApi();
 
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+        ]);
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
