@@ -11,9 +11,7 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
@@ -43,40 +41,25 @@ class AuthController extends Controller
      *
      * @throws ValidationException
      */
-    public function login(LoginRequest $request): UserResource
+    public function login(LoginRequest $request): JsonResponse
     {
-        if (! Auth::guard('web')->attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        if (! Auth::attempt($request->only('email', 'password'))) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
         }
 
-        // Prevent session fixation now that the user is authenticated.
-        $request->session()->regenerate();
+        /** @var User $user */
+        $user = Auth::user();
+        $user->load('roles');
 
-        return UserResource::make($request->user()->load('roles'));
-    }
+        $user->tokens()->delete();
 
-    /**
-     * Authenticate a user on a app from Expo.
-     *
-     * @throws ValidationException
-     */
-    public function loginMobile(LoginRequest $request): JsonResponse
-    {
-        $user = User::query()->where('email', $request->input('email'))->first();
-
-        if (! $user || ! Hash::check($request->input('password'), $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
-            ]);
-        }
-
-        $token = $user->createToken('expo-app')->plainTextToken;
+        $token = $user->createToken('spa-token')->plainTextToken;
 
         return response()->json([
             'token' => $token,
-            'user' => UserResource::make($user->load('roles')),
+            'data' => new UserResource($user),
         ]);
     }
 
@@ -91,13 +74,12 @@ class AuthController extends Controller
     /**
      * Log the user out of the SPA session and invalidate it.
      */
-    public function logout(Request $request): Response
+    public function logout(Request $request): JsonResponse
     {
-        Auth::guard('web')->logout();
+        /** @var User $user */
+        $user = $request->user();
+        $user->currentAccessToken()->delete();
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return response()->noContent();
+        return response()->json(['message' => 'Logged out successfully']);
     }
 }
